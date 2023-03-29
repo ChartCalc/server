@@ -16,5 +16,5 @@ public class DispersionResponseDto {
 
 	Integer interval;
 
-	Integer averageReturn;
+	Double averageReturn;
 }
