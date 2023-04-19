@@ -1,5 +1,6 @@
 package chartcalc.server.dispersion.service;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 import org.springframework.stereotype.Service;
@@ -9,6 +10,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import chartcalc.server.data.model.Data;
+import chartcalc.server.data.repository.DataRepository;
 import chartcalc.server.dispersion.dto.DispersionRequestDto;
 import chartcalc.server.dispersion.dto.DispersionResponseDto;
 import chartcalc.server.dispersion.exceptions.DataSourceFormatException;
@@ -18,31 +21,43 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class DispersionServiceImpl implements DispersionService {
+	final DataRepository dataRepository;
+	
 	final WebClient client;
 
 	final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 	@Override
 	public DispersionResponseDto calculate(DispersionRequestDto request) {
-		String json = client
-				.get()
-				.uri(b -> b
-						.path("quote/" + request.getSymbol() + "/historical")
-						.queryParam("assetclass", "index")
-						.queryParam("fromdate", request.getFrom().format(formatter))
-						.queryParam("todate", request.getTo().format(formatter))
-						.queryParam("limit", "999999999")
-						.build())
-				.retrieve()
-				.bodyToMono(String.class)
-				.block();
+		String symbol = request.getSymbol();
+
+		Data data = dataRepository.findById(symbol)
+				.filter(d -> d.getDate().isAfter(request.getTo()))
+				.orElse(Data.builder()
+					.symbol(symbol)
+					.json(client
+							.get()
+							.uri(b -> b
+									.path("quote/" + request.getSymbol() + "/historical")
+									.queryParam("assetclass", "index")
+									.queryParam("fromdate", request.getFrom().format(formatter))
+									.queryParam("todate", request.getTo().format(formatter))
+									.queryParam("limit", "999999999")
+									.build())
+							.retrieve()
+							.bodyToMono(String.class)
+							.block())
+					.date(LocalDate.now())
+					.build());
+
+		dataRepository.save(data);
 
 		ObjectMapper mapper = new ObjectMapper();
 
 		JsonNode rowNodes;
 
 		try {
-			rowNodes = mapper.readTree(json)
+			rowNodes = mapper.readTree(data.getJson())
 					.get("data")
 					.get("tradesTable")
 					.get("rows");
