@@ -11,7 +11,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import chartcalc.server.dispersion.dto.DispersionRequestDto;
 import chartcalc.server.dispersion.dto.DispersionResponseDto;
-import chartcalc.server.dispersion.service.exceptions.DataSourceFormatException;
+import chartcalc.server.dispersion.exceptions.DataSourceFormatException;
+import chartcalc.server.dispersion.exceptions.SymbolNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -29,7 +30,8 @@ public class DispersionServiceImpl implements DispersionService {
 						.path("quote/" + request.getSymbol() + "/historical")
 						.queryParam("assetclass", "index")
 						.queryParam("fromdate", request.getFrom().format(formatter))
-						.queryParam("todate", request.getTo().format(formatter)).queryParam("limit", "999999999")
+						.queryParam("todate", request.getTo().format(formatter))
+						.queryParam("limit", "999999999")
 						.build())
 				.retrieve()
 				.bodyToMono(String.class)
@@ -40,12 +42,12 @@ public class DispersionServiceImpl implements DispersionService {
 		JsonNode rowNodes;
 
 		try {
-			// TODO: SymbolNotFoundException
-
 			rowNodes = mapper.readTree(json)
 					.get("data")
 					.get("tradesTable")
 					.get("rows");
+		} catch (NullPointerException e) {
+			throw new SymbolNotFoundException();
 		} catch (JsonProcessingException e) {
 			throw new DataSourceFormatException();
 		}
