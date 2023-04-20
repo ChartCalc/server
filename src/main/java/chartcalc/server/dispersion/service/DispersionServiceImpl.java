@@ -29,7 +29,7 @@ public class DispersionServiceImpl implements DispersionService {
 
 	@Override
 	public DispersionResponseDto calculate(DispersionRequestDto request) {
-		String symbol = request.getSymbol();
+		String symbol = request.getSymbol().toUpperCase();
 
 		Data data = dataRepository.findById(symbol)
 				.filter(d -> d.getJson() != null)
@@ -100,7 +100,7 @@ public class DispersionServiceImpl implements DispersionService {
 		averageReturn = sum / counter;
 
 		return DispersionResponseDto.builder()
-				.symbol(request.getSymbol())
+				.symbol(symbol)
 				.assetClass(data.getAssetClass())
 				.from(request.getFrom())
 				.to(request.getTo())
