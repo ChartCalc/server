@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import chartcalc.server.data.model.Data;
 import chartcalc.server.data.repository.DataRepository;
+import chartcalc.server.data.service.DataService;
 import chartcalc.server.dispersion.dto.DispersionRequestDto;
 import chartcalc.server.dispersion.dto.DispersionResponseDto;
 import chartcalc.server.dispersion.exceptions.DataSourceFormatException;
@@ -23,34 +23,24 @@ import lombok.RequiredArgsConstructor;
 public class DispersionServiceImpl implements DispersionService {
 	final DataRepository dataRepository;
 	
-	final WebClient client;
-
-	final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+	final DataService dataService;
+	
+	DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
 	@Override
 	public DispersionResponseDto calculate(DispersionRequestDto request) {
 		String symbol = request.getSymbol();
 
 		Data data = dataRepository.findById(symbol)
+				.filter(d -> d.getJson() != null)
 				.filter(d -> d.getDate().isAfter(request.getTo()))
 				.orElse(Data.builder()
 					.symbol(symbol)
-					.json(client
-							.get()
-							.uri(b -> b
-									.path("quote/" + request.getSymbol() + "/historical")
-									.queryParam("assetclass", "index")
-									.queryParam("fromdate", request.getFrom().format(formatter))
-									.queryParam("todate", request.getTo().format(formatter))
-									.queryParam("limit", "999999999")
-									.build())
-							.retrieve()
-							.bodyToMono(String.class)
-							.block())
+					.assetClass("index")
 					.date(LocalDate.now())
 					.build());
 
-		dataRepository.save(data);
+		data.setJson(dataService.requestJson(data));
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -62,29 +52,56 @@ public class DispersionServiceImpl implements DispersionService {
 					.get("tradesTable")
 					.get("rows");
 		} catch (NullPointerException e) {
-			throw new SymbolNotFoundException();
+			try {
+				data.setAssetClass("stocks");
+				data.setJson(dataService.requestJson(data));
+				
+				rowNodes = mapper.readTree(data.getJson())
+						.get("data")
+						.get("tradesTable")
+						.get("rows");
+			} catch (NullPointerException ee) {
+				throw new SymbolNotFoundException();
+			} catch (JsonProcessingException ee) {
+				throw new DataSourceFormatException();
+			}
 		} catch (JsonProcessingException e) {
 			throw new DataSourceFormatException();
 		}
+
+		dataRepository.save(data);
+
+		int counter = 0;
 
 		int iterations = rowNodes.size() - request.getInterval();
 
 		double sum = 0, averageReturn = 0;
 
 		for (int i = 0; i < iterations; i++) {
-			double left = Double.parseDouble(rowNodes.get(i)
-					.get("close").asText().replace(",", ""));
+			LocalDate date = LocalDate.parse(rowNodes.get(i).get("date").asText(), formatter);
 
-			double right = Double.parseDouble(rowNodes.get(i + request.getInterval())
-					.get("close").asText().replace(",", ""));
+			if (date.isAfter(request.getTo())) {
+				continue;
+			}
+			else if (date.isBefore(request.getFrom())) {
+				break;
+			}
+
+			double right = Double.parseDouble(rowNodes.get(i)
+					.get("close").asText().replace("$", "").replace(",", ""));
+
+			double left = Double.parseDouble(rowNodes.get(i + request.getInterval())
+					.get("close").asText().replace("$", "").replace(",", ""));
 
 			sum += right - left;
+			counter++;
 		}
-		
-		averageReturn = sum / iterations;
+
+		averageReturn = sum / counter;
 
 		return DispersionResponseDto.builder()
 				.symbol(request.getSymbol())
+				.assetClass(data.getAssetClass())
 				.from(request.getFrom())
 				.to(request.getTo())
 				.interval(request.getInterval())

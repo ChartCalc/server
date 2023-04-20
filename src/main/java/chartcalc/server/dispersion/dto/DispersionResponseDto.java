@@ -12,6 +12,8 @@ import lombok.Setter;
 public class DispersionResponseDto {
 	String symbol;
 
+	String assetClass;
+
 	LocalDate from;
 
 	LocalDate to;

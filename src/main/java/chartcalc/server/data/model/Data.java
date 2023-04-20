@@ -10,9 +10,11 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +22,8 @@ import lombok.NoArgsConstructor;
 public class Data {
 	@Id
 	String symbol;
+
+	String assetClass;
 
 	@Column(columnDefinition = "TEXT")
 	String json;
