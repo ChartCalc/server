@@ -93,7 +93,7 @@ public class DispersionServiceImpl implements DispersionService {
 			double left = Double.parseDouble(rowNodes.get(i + request.getInterval())
 					.get("close").asText().replace("$", "").replace(",", ""));
 
-			sum += right - left;
+			sum += (right / left - 1) * 100;
 			counter++;
 		}
 
