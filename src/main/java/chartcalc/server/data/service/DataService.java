@@ -5,5 +5,7 @@ import chartcalc.server.data.model.Data;
 public interface DataService {
 	Iterable<String> listSymbols();
 
-	String requestJson(Data data);
+	String requestQuoteJson(Data data, int limit, int offset);
+	
+	String requestScreenerJson(String assetClass, int limit, int offset);
 }

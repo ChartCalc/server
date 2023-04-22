@@ -40,7 +40,7 @@ public class DispersionServiceImpl implements DispersionService {
 					.date(LocalDate.now())
 					.build());
 
-		data.setJson(dataService.requestJson(data));
+		data.setJson(dataService.requestQuoteJson(data, 999999999, 0));
 
 		ObjectMapper mapper = new ObjectMapper();
 
@@ -54,7 +54,7 @@ public class DispersionServiceImpl implements DispersionService {
 		} catch (NullPointerException e) {
 			try {
 				data.setAssetClass("stocks");
-				data.setJson(dataService.requestJson(data));
+				data.setJson(dataService.requestQuoteJson(data, 999999999, 0));
 				
 				rowNodes = mapper.readTree(data.getJson())
 						.get("data")

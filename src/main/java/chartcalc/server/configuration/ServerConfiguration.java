@@ -8,7 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class ServerConfiguration {
 	@Bean
-	public WebClient getWebClient() {
+	WebClient getWebClient() {
 		return WebClient.builder()
 				.baseUrl("https://api.nasdaq.com/api/")
 				.exchangeStrategies(ExchangeStrategies.builder()

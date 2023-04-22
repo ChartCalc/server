@@ -25,7 +25,7 @@ public class DataServiceImpl implements DataService {
 	}
 
 	@Override
-	public String requestJson(Data data) {
+	public String requestQuoteJson(Data data, int limit, int offset) {
 		return client
 				.get()
 				.uri(b -> b
@@ -33,7 +33,22 @@ public class DataServiceImpl implements DataService {
 						.queryParam("assetclass", data.getAssetClass())
 						.queryParam("fromdate", "1970-01-01")
 						.queryParam("todate", LocalDate.now().format(formatter))
-						.queryParam("limit", "999999999")
+						.queryParam("limit", limit)
+						.queryParam("offset", offset)
+						.build())
+				.retrieve()
+				.bodyToMono(String.class)
+				.block();
+	}
+
+	@Override
+	public String requestScreenerJson(String assetClass, int limit, int offset) {
+		return client
+				.get()
+				.uri(b -> b
+						.path("screener/" + assetClass)
+						.queryParam("limit", limit)
+						.queryParam("offset", offset)
 						.build())
 				.retrieve()
 				.bodyToMono(String.class)
